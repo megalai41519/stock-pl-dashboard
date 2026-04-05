@@ -1,0 +1,166 @@
+name: Build & Release
+
+# Triggers on version tags like v1.0.0, v1.2.3, etc.
+on:
+  push:
+    tags:
+      - 'v*'
+
+# ── Explicit permissions — avoids the 403 error on first run ─────────────────
+# If this still fails: Settings → Actions → General → Read and write permissions
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+
+  # ── Mac build ─────────────────────────────────────────────────────────────
+  build-mac:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pyinstaller
+
+      - name: Build .app
+        run: |
+          pyinstaller build/stock_dashboard_mac.spec \
+            --distpath dist/mac \
+            --workpath /tmp/pyinstaller_work \
+            --noconfirm
+
+      - name: Zip the .app bundle
+        run: |
+          cd dist/mac
+          zip -r ../../StockDashboard-mac.zip StockDashboard.app
+
+      - name: Upload Mac artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: StockDashboard-mac
+          path: StockDashboard-mac.zip
+
+  # ── Windows build ─────────────────────────────────────────────────────────
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pyinstaller
+
+      - name: Build .exe
+        run: |
+          pyinstaller build\stock_dashboard_win.spec `
+            --distpath dist\windows `
+            --workpath "$env:TEMP\pyinstaller_work" `
+            --noconfirm
+
+      - name: Zip the .exe
+        run: |
+          Compress-Archive -Path dist\windows\StockDashboard.exe -DestinationPath StockDashboard-windows.zip
+
+      - name: Upload Windows artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: StockDashboard-windows
+          path: StockDashboard-windows.zip
+
+  # ── Create GitHub Release ─────────────────────────────────────────────────
+  release:
+    needs: [build-mac, build-windows]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download Mac artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: StockDashboard-mac
+
+      - name: Download Windows artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: StockDashboard-windows
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: "Stock Dashboard ${{ github.ref_name }}"
+          draft: false
+          prerelease: false
+          files: |
+            StockDashboard-mac.zip
+            StockDashboard-windows.zip
+          body: |
+            ## 📦 Stock P&L Dashboard ${{ github.ref_name }}
+
+            Personal portfolio analytics dashboard — runs locally, no cloud needed.
+
+            ---
+
+            ### ⬇️ Downloads
+
+            | Platform | File |
+            |----------|------|
+            | 🍎 macOS  | `StockDashboard-mac.zip` |
+            | 🪟 Windows | `StockDashboard-windows.zip` |
+
+            ---
+
+            ### 🚀 Quick Start
+
+            **Before running, you need two files next to the app/exe:**
+
+            **1. `portfolio.csv`**
+            ```
+            stock_name,total_shares,cost_at_buy
+            AAPL,10,145.50
+            MSFT,5,280.00
+            GOOGL,3,130.25
+            ```
+
+            **2. `.env`** (get your free key at [financialmodelingprep.com](https://financialmodelingprep.com))
+            ```
+            FMP_API_KEY=your_key_here
+            ```
+
+            ---
+
+            ### 🍎 macOS Instructions
+            1. Unzip `StockDashboard-mac.zip`
+            2. **Move `StockDashboard.app` out of Downloads** (App Translocation fix)
+            3. Place `portfolio.csv` and `.env` **next to** `StockDashboard.app`
+            4. **First run:** right-click → Open (bypass Gatekeeper)
+            5. If quarantine error: `xattr -cr StockDashboard.app` in Terminal
+            6. Browser opens automatically at http://localhost:8000
+
+            ### 🪟 Windows Instructions
+            1. Unzip `StockDashboard-windows.zip`
+            2. Place `portfolio.csv` and `.env` **next to** `StockDashboard.exe`
+            3. Double-click `StockDashboard.exe`
+            4. SmartScreen warning: click **More info → Run anyway**
+            5. Browser opens automatically at http://localhost:8000
+
+            ---
+
+            ### 💰 Cost
+            **$0 forever** — FMP free tier (250 req/day) + yfinance fallback + GitHub Actions free tier
