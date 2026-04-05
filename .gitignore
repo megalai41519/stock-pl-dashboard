@@ -6,7 +6,13 @@ __pycache__/
 .Python
 *.egg-info/
 dist/
-build/
+
+#PyInstaller build output only — keep spec and script files
+build/*.toc
+build/*.pkg
+build/*.exe
+build/build_mac.sh~
+/dist/
 *.egg
 
 # Virtual environments
@@ -20,6 +26,8 @@ env/
 /build/*.toc
 /build/*.pkg
 /build/*.exe
+
+
 
 # Secrets — NEVER commit these
 .env
