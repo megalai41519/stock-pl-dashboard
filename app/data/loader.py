@@ -25,43 +25,25 @@ class PortfolioLoadError(Exception):
 
 
 def detect_csv_issues() -> dict:
-    """
-    Inspect the raw CSV file for signs it was exported from Apple Numbers
-    in the wrong format (.numbers opened and re-saved, or exported with
-    rich formatting artifacts).
-
-    Returns a dict of detected issue flags.
-    """
+    """Inspect the raw CSV file for signs it was exported from Apple Numbers."""
     issues = {"numbers_format": False}
-
     if not os.path.exists(PORTFOLIO_CSV):
         return issues
-
     try:
         with open(PORTFOLIO_CSV, "rb") as f:
             raw = f.read(512)
-
-        # Apple Numbers plain-CSV export is usually clean UTF-8 or UTF-8-BOM.
-        # The .numbers binary format starts with a PK zip header.
         if raw[:2] == b"PK":
             issues["numbers_format"] = True
-            log.warning(
-                "portfolio.csv appears to be a .numbers binary file, not plain CSV. "
-                "In Numbers: File → Export To → CSV."
-            )
-
-        # Another sign: null bytes in first 512 bytes (binary format)
+            log.warning("portfolio.csv appears to be a .numbers binary file. In Numbers: File → Export To → CSV.")
         elif b"\x00" in raw:
             issues["numbers_format"] = True
             log.warning("portfolio.csv contains binary data — export as plain CSV.")
-
     except OSError:
         pass
-
     return issues
 
 
-
+def load_portfolio() -> List[Dict]:
     """Read portfolio.csv and return validated holding rows."""
 
     if not os.path.exists(PORTFOLIO_CSV):
@@ -76,7 +58,6 @@ def detect_csv_issues() -> dict:
     with open(PORTFOLIO_CSV, newline="", encoding="utf-8-sig") as fh:
         reader = csv.DictReader(fh)
 
-        # Normalise header names
         if reader.fieldnames is None:
             raise PortfolioLoadError("portfolio.csv appears to be empty.")
 
@@ -88,13 +69,12 @@ def detect_csv_issues() -> dict:
                 "Expected: stock_name, total_shares, cost_at_buy"
             )
 
-        for i, row in enumerate(reader, start=2):  # row 1 = header
-            # Map to normalised keys
+        for i, row in enumerate(reader, start=2):
             norm_row = {k.strip().lower(): v.strip() for k, v in row.items() if k}
 
-            ticker    = norm_row.get("stock_name", "").upper().strip()
-            shares_s  = norm_row.get("total_shares", "")
-            cost_s    = norm_row.get("cost_at_buy", "")
+            ticker   = norm_row.get("stock_name", "").upper().strip()
+            shares_s = norm_row.get("total_shares", "")
+            cost_s   = norm_row.get("cost_at_buy", "")
 
             if not ticker:
                 errors.append(f"Row {i}: empty stock_name — skipped.")
@@ -127,8 +107,7 @@ def detect_csv_issues() -> dict:
 
     if not holdings:
         raise PortfolioLoadError(
-            "No valid holdings found in portfolio.csv.\n"
-            + "\n".join(errors)
+            "No valid holdings found in portfolio.csv.\n" + "\n".join(errors)
         )
 
     log.info("Loaded %d holdings from portfolio.csv", len(holdings))

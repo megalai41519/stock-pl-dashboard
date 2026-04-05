@@ -27,6 +27,9 @@ load_dotenv(dotenv_path=os.path.join(get_base_path(), ".env"))
 from app.routes.portfolio import router as portfolio_router
 from app.routes.charts import router as charts_router
 from app.routes.news import router as news_router
+from app.data.cache import init_cache
+
+init_cache()
 
 logging.basicConfig(
     level=logging.INFO,

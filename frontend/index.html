@@ -944,7 +944,7 @@ function renderKPIs(k) {
   grid.innerHTML = cards.map(c => `
     <div class="kpi-card">
       <div class="kpi-label">${c.label}</div>
-      <div class="kpi-value" style="${c.label==='Total P&L'?'color:var(--'+(c.badge&&c.badge.cls.includes('pos')?'green':'c.badge&&c.badge.cls.includes("neg")?"red":"text-primary")+')':''}">${c.value}</div>
+      <div class="kpi-value" style="${c.label==='Total P&L' ? (c.badge ? (c.badge.cls.includes('pos') ? 'color:var(--green)' : 'color:var(--red)') : '') : ''}">${c.value}</div>
       <div class="kpi-sub">${c.sub}</div>
       ${c.badge ? `<div class="kpi-badge ${c.badge.cls}">${c.badge.text}</div>` : ''}
     </div>
